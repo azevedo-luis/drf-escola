@@ -1,41 +1,105 @@
-from rest_framework.views import APIView
+from rest_framework import generics
+from rest_framework.generics import get_object_or_404
+from rest_framework import viewsets
+from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework import status
-
+from rest_framework import mixins
+from rest_framework import permissions
 from .models import Curso, Avaliacao
 from .serializers import CursoSerializer, AvaliacaoSerializer
+from .permissions import EhSuperUser
+
+""""
+API versão 1
+"""
 
 
-class CursoAPIView(APIView):
+class CursosAPIView(generics.ListCreateAPIView):
     """
     API de cursos - Luis Azevedo
     """
-
-    def get(self, request):
-        print(dir(request))
-        cursos = Curso.objects.all()
-        serializer = CursoSerializer(cursos, many=True)
-        return Response(serializer.data)
-
-    def post(self, request):
-        serializer = CursoSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    queryset = Curso.objects.all()
+    serializer_class = CursoSerializer
 
 
-class AvaliacaoAPIView(APIView):
+class CursoAPIView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    API de cursos - Luis Azevedo
+    """
+    queryset = Curso.objects.all()
+    serializer_class = CursoSerializer
+
+
+class AvaliacaoAPIView(generics.RetrieveUpdateDestroyAPIView):
     """"
     API de avaliações - Luis Azevedo
     """
 
-    def get(self, request):
-        avaliacoes = Avaliacao.objects.all()
+    queryset = Avaliacao.objects.all()
+    serializer_class = AvaliacaoSerializer
+
+    def get_object(self):
+        if self.kwargs.get('curso_pk'):
+            return get_object_or_404(self.get_queryset(), curso_id=self.kwargs.get('curso_pk'),
+                                     pk=self.kwargs.get('avaliacao_pk'))
+        return get_object_or_404(self.get_queryset(), pk=self.kwargs.get('avaliacao_pk'))
+
+
+class AvaliacoesAPIView(generics.ListCreateAPIView):
+    """"
+    API de avaliações - Luis Azevedo
+    """
+
+    queryset = Avaliacao.objects.all()
+    serializer_class = AvaliacaoSerializer
+
+    def get_queryset(self):
+        if self.kwargs.get('curso_pk'):
+            return self.queryset.filter(curso_id=self.kwargs.get('curso_pk'))
+        return self.queryset.all()
+
+
+""""
+API versão 2
+"""
+
+
+class CursoViewSet(viewsets.ModelViewSet):
+    permission_classes = (
+        EhSuperUser,
+        permissions.DjangoModelPermissions,
+    ) # Existe uma configuração global de permissões, mas nessa view estou definindo uma permissão específica.
+    queryset = Curso.objects.all()
+    serializer_class = CursoSerializer
+
+    @action(detail=True, methods=['get'])
+    def avaliacoes(self, request, pk=None):
+        self.pagination_class.page_size = 1
+        avaliacoes = Avaliacao.objects.filter(curso_id=pk)
+        page = self.paginate_queryset(avaliacoes)
+        if page is not None:
+            serializer = AvaliacaoSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
         serializer = AvaliacaoSerializer(avaliacoes, many=True)
         return Response(serializer.data)
 
-    def post(self, request):
-        serializer = AvaliacaoSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+""""
+# O AvaliacaoViewSet abaixo é quando eu quero habilitar todas as operacões sobre o model. Agora se, por exemplo, desejar
+# restringir o update. 
+class AvaliacaoViewSet(viewsets.ModelViewSet):
+    queryset = Avaliacao.objects.all()
+    serializer_class = AvaliacaoSerializer
+"""
+
+
+class AvaliacaoViewSet(
+    mixins.ListModelMixin,
+    mixins.CreateModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    #mixins.DestroyModelMixin,
+    viewsets.GenericViewSet):
+
+    queryset = Avaliacao.objects.all()
+    serializer_class = AvaliacaoSerializer

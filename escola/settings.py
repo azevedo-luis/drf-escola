@@ -8,6 +8,10 @@ https://docs.djangoproject.com/en/2.2/topics/settings/
 
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/2.2/ref/settings/
+
+
+Token teste: a10340ca41ae396da49b97e6d7d6ca933a400382
+Token felicity: 07585a042cc14ccf62597c903a3884b5631ae660
 """
 
 import os
@@ -42,9 +46,11 @@ INSTALLED_APPS = [
     # extras
     'django_filters',
     'rest_framework',
-
+    'rest_framework.authtoken',
+    
     # aplications
     'cursos',
+
 ]
 
 MIDDLEWARE = [
@@ -131,12 +137,23 @@ MEDIA_URL = 'media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 
-#DRF
-REST_FRAMWEORK = {
+#DRF - Django Rest Framework
+REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework.authentication.SessionAuthentication',
+        #'rest_framework.authentication.SessionAuthentication', #autenticação por sessão de navegador
+        'rest_framework.authentication.TokenAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticatedOrReadOnly',
-    )
+    ),
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 2,
+    'DEFAULT_THROTTLE_CLASSES': (
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ),
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '5/minute',#usuários não autenticados podem fazer 5 requisições por minuto
+        'user': '10/minute'#usuário autenticados podem fazer 10 requisições por minuto
+    }
 }
